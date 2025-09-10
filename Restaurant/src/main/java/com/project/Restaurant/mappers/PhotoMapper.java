@@ -9,6 +9,7 @@ import org.mapstruct.ReportingPolicy;
 @Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface PhotoMapper {
 
+    //server is giving to user --> Dto required
     PhotoDto toDto(Photo photo);
 
 }
