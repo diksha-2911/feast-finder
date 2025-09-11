@@ -3,9 +3,11 @@ package com.project.Restaurant.services.impl;
 import com.project.Restaurant.domain.GeoLocation;
 import com.project.Restaurant.domain.entities.Address;
 import com.project.Restaurant.services.GeoLocationService;
+import org.springframework.stereotype.Service;
 
 import java.util.Random;
 
+@Service
 public class GeoLocationServiceImpl implements GeoLocationService {
 
 

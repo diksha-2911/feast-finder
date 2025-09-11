@@ -5,16 +5,20 @@ import com.project.Restaurant.domain.RestaurantCreateUpdateRequest;
 import com.project.Restaurant.domain.entities.Address;
 import com.project.Restaurant.domain.entities.Photo;
 import com.project.Restaurant.domain.entities.Restaurant;
+import com.project.Restaurant.exceptions.RestaurantNotFoundException;
 import com.project.Restaurant.repositories.RestaurantRepository;
 import com.project.Restaurant.services.GeoLocationService;
 import com.project.Restaurant.services.RestaurantService;
-import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.elasticsearch.core.geo.GeoPoint;
 import org.springframework.stereotype.Service;
+import java.util.stream.Collectors;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 
 @Service
@@ -23,6 +27,7 @@ public class RestaurantServiceImpl implements RestaurantService {
 
     private final RestaurantRepository restaurantRepository;
     private final GeoLocationService geoLocationService;
+//    private final RestaurantCreateUpdateRequest restaurantCreateUpdateRequest;
 
     @Override
     public Restaurant createRestaurant(RestaurantCreateUpdateRequest request) {
@@ -46,5 +51,64 @@ public class RestaurantServiceImpl implements RestaurantService {
                 .build();
         return restaurantRepository.save(restaurant);
 
+    }
+
+    @Override
+    public Page<Restaurant> searchRestaurants(String query, Float minRating, Float latitude, Float longitude, Float radius, Pageable pageable) {
+        //` If just filtering my min rating
+        if (null != minRating && (null == query || query.isEmpty())) {
+            return restaurantRepository.findByAverageRatingGreaterThanEqual(minRating, pageable);
+        }
+        //` Normalize min rating to be used in other queries
+        Float searchMinRating = minRating == null ? 0f : minRating;
+        //` If there's a text, search query
+        if (query != null && !query.trim().isEmpty()) {
+            return restaurantRepository.findByQueryAndMinRating(query, searchMinRating, pageable);
+        }
+
+        // If there's a location search
+        if (latitude != null && longitude != null && radius != null) {
+            return restaurantRepository.findByLocationNear(latitude, longitude, radius, pageable);
+        }
+        // Otherwise we'll perform a non-location search
+        return restaurantRepository.findAll(pageable);
+    }
+
+    @Override
+    public Optional<Restaurant> getRestaurant(String id) {
+        return restaurantRepository.findById(id);
+    }
+
+    @Override
+    public Restaurant updateRestaurant(String id, RestaurantCreateUpdateRequest restaurantCreateUpdateRequest) {
+        // First, verify the restaurant exists
+        Restaurant existingRestaurant = getRestaurant(id)
+                .orElseThrow(() -> new RestaurantNotFoundException("Restaurant with ID does not exist"));
+        // Get new geo coordinates based on the updated address");
+        GeoLocation newGeoLocation = geoLocationService.geoLocate(restaurantCreateUpdateRequest.getAddress());
+        GeoPoint newGeoPoint = new GeoPoint(newGeoLocation.getLatitude(), newGeoLocation.getLongitude());
+
+        // Convert photo URLs to Photo entities
+        List<Photo> photos = restaurantCreateUpdateRequest.getPhotoIds().stream().map(photoUrl ->
+                        Photo.builder()
+                                .url(photoUrl)
+                                .uploadDate(LocalDateTime.now())
+                                .build()
+                        ).collect(Collectors.toList());
+
+// Update all fields except averageRating
+        existingRestaurant.setName(restaurantCreateUpdateRequest.getName());
+        existingRestaurant.setCuisineType(restaurantCreateUpdateRequest.getCuisineType());
+        existingRestaurant.setContactInformation(restaurantCreateUpdateRequest.getContactInformation());
+        existingRestaurant.setAddress(restaurantCreateUpdateRequest.getAddress());
+        existingRestaurant.setGeoLocation(newGeoPoint);
+        existingRestaurant.setOperatingHours(restaurantCreateUpdateRequest.getOperatingHours());
+        existingRestaurant.setPhotos(photos);
+        return restaurantRepository.save(existingRestaurant);
+    }
+
+    @Override
+    public void deleteRestaurant(String id) {
+        restaurantRepository.deleteById(id);
     }
 }

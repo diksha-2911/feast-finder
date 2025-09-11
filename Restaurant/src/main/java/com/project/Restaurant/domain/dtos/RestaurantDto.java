@@ -11,6 +11,15 @@ import org.springframework.data.elasticsearch.core.geo.GeoPoint;
 import java.util.ArrayList;
 import java.util.List;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
 public class RestaurantDto {
 
     private String id;
@@ -30,6 +39,7 @@ public class RestaurantDto {
     private List<ReviewDto> reviews = new ArrayList<>();
     private List<PhotoDto> photos = new ArrayList<>();
     private UserDto createdBy;
+    private Integer totalReviews;
 
 
 }
